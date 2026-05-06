@@ -32,6 +32,22 @@ const Icon = ({ name, size = 16, className = "", strokeWidth = 1.75 }) => {
 // ---------- Mock data ----------
 const COMPETITORS = ["Mobiliar", "Helvetia", "Zurich", "Baloise", "Allianz"];
 
+const AVB_DB = {
+  Mobiliar: { version: "2024.1", date: "01.03.2024", status: "current",  label: "Hausrat AVB 2024.1" },
+  Helvetia: { version: "2023.2", date: "15.09.2023", status: "newer",    label: "Hausrat AVB 2023.2" },
+  Zurich:   { version: "2025.1", date: "01.01.2025", status: "current",  label: "Hausrat AVB 2025.1" },
+  Baloise:  { version: "2024.2", date: "01.07.2024", status: "current",  label: "Hausrat AVB 2024.2" },
+  Allianz:  { version: "2023.1", date: "01.03.2023", status: "outdated", label: "Hausrat AVB 2023.1" },
+};
+const AXA_AVB = { version: "2025.1", date: "01.01.2025", label: "Hausrat AVB 2025.1" };
+
+const AVB_STATUS = {
+  current:  { label: "Aktuell",                  cls: "avb-current" },
+  newer:    { label: "Neuere Version vorhanden",  cls: "avb-newer" },
+  outdated: { label: "Veraltet",                  cls: "avb-outdated" },
+  unknown:  { label: "Nicht erkannt",             cls: "avb-unknown" },
+};
+
 const KUNDENTYP = ["Single", "Paar", "Familie", "Pensioniert"];
 const WOHNSITUATION = ["Miete", "Eigentum", "Zweitwohnsitz"];
 const PRIORITAET = ["Preissensibel", "Mehr Leistung", "Alles bei uns", "Cyber wichtig"];
@@ -178,6 +194,15 @@ const DEEP_DIVE_AREAS = [
       "Der Mitbewerber garantiert eine Reaktionszeit unter 120 Minuten. In einem echten Notfall — Wassereinbruch, Einbruch, Heizungsausfall — ist der Zeitunterschied spürbar. Dieser Vorteil ist im Kundengespräch einfach und glaubwürdig zu kommunizieren.",
     ],
   },
+  {
+    key: "avb",
+    label: "AVB-Vergleich im Detail",
+    icon: "BookOpen",
+    text: [
+      "Die Vergleichsparameter basieren auf den offiziellen, versionierten AVB-Dokumenten beider Anbieter. Für Mobiliar gilt die Hausrat AVB 2024.1 (gültig ab 01.03.2024), für AXA die Hausrat AVB 2025.1 (gültig ab 01.01.2025). Alle Leistungsparameter wurden automatisch aus den Dokumenten extrahiert und strukturiert gegenübergestellt.",
+      "Wesentliche Unterschiede in den Vertragsbedingungen: AXA definiert «Diebstahl auswärts» in Art. 9 Abs. 1 breiter als Mobiliar in §15 Abs. 3 — Gegenstände im Fahrzeug sind bei AXA klarer mitversichert. Der Cyber-Schutz ist in der AXA AVB Art. 22 als eigenständiger Baustein mit klarer Schadensdefinition geregelt; bei Mobiliar läuft dieser als Ergänzung zur Haftpflicht (§18), was bei Schadensfällen zu engerer Auslegung führen kann.",
+    ],
+  },
 ];
 
 const PROSE = (kunde, wohn, prio, comp) => {
@@ -247,7 +272,7 @@ function PrimaryButton({ children, onClick, icon, variant = "primary", disabled,
 }
 
 // ---------- Step components ----------
-function WelcomeCard({ onStart, onAsk }) {
+function WelcomeCard({ onStart }) {
   return (
     <div className="card welcome">
       <div className="welcome-eyebrow">
@@ -262,9 +287,6 @@ function WelcomeCard({ onStart, onAsk }) {
       <div className="welcome-actions">
         <PrimaryButton onClick={onStart} icon="Plus" variant="primary">
           Neuen Leistungsvergleich starten
-        </PrimaryButton>
-        <PrimaryButton onClick={onAsk} icon="MessageSquare" variant="ghost">
-          Fragen zu einem bestehenden Vergleich
         </PrimaryButton>
       </div>
       <div className="welcome-meta">
@@ -396,9 +418,65 @@ function UploadCard({ onUploaded, title = "Konkurrenz-Police hochladen", mockFil
   );
 }
 
-function DetectedCard({ detected, onConfirm, onChange }) {
+function AvbBadge({ avb }) {
+  if (!avb) return null;
+  const s = AVB_STATUS[avb.status] || AVB_STATUS.unknown;
+  return (
+    <div className="avb-section">
+      <div className="avb-section-label">AVB-Version erkannt</div>
+      <div className="avb-row">
+        <Icon name="FileText" size={14} style={{ color: "var(--ink-3)", marginTop: 2, flexShrink: 0 }} />
+        <div className="avb-info">
+          <div className="avb-name">{avb.label}</div>
+          <div className="avb-date">Gültig ab {avb.date}</div>
+          <span className={`avb-status ${s.cls}`}>● {s.label}</span>
+          {avb.status === "newer" && (
+            <div className="avb-hint">Neuere AVB in Datenbank — Vergleich mit erkannter Version.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AvbManualUpload({ onUploaded }) {
+  const [uploading, setUploading] = useState(false);
+  const trigger = () => {
+    setUploading(true);
+    setTimeout(() => {
+      setUploading(false);
+      onUploaded({ version: "2024.1", date: "01.03.2024", status: "current", label: "Hausrat AVB 2024.1" });
+    }, 1400);
+  };
+  return (
+    <div className="avb-section">
+      <div className="avb-section-label">AVB-Version</div>
+      <div className="avb-row">
+        <Icon name="AlertTriangle" size={14} style={{ color: "var(--nachteil)", marginTop: 2, flexShrink: 0 }} />
+        <div className="avb-info">
+          <div className="avb-name" style={{ color: "var(--nachteil)" }}>Nicht erkannt</div>
+          <div className="avb-date">Bitte AVB-Dokument manuell hochladen</div>
+        </div>
+      </div>
+      {!uploading ? (
+        <PrimaryButton icon="Upload" variant="ghost" onClick={trigger}>AVB-PDF hochladen</PrimaryButton>
+      ) : (
+        <div className="progress-row"><span className="spinner spinner-sm" /> AVB wird gelesen…</div>
+      )}
+    </div>
+  );
+}
+
+function DetectedCard({ detected, avb, onConfirm, onChange, onAvbManual }) {
   const [picking, setPicking] = useState(false);
   const [pick, setPick] = useState(detected);
+  const [localAvb, setLocalAvb] = useState(avb);
+
+  const handleAvbManual = (data) => {
+    setLocalAvb(data);
+    onAvbManual && onAvbManual(data);
+  };
+
   return (
     <div className="card">
       <div className="card-h">Mitbewerber erkannt</div>
@@ -411,6 +489,10 @@ function DetectedCard({ detected, onConfirm, onChange }) {
               <div className="detected-sub">Stimmt das?</div>
             </div>
           </div>
+          {localAvb
+            ? <AvbBadge avb={localAvb} />
+            : <AvbManualUpload onUploaded={handleAvbManual} />
+          }
           <div className="card-actions row">
             <PrimaryButton icon="Check" onClick={() => onConfirm(detected)}>Ja, korrekt</PrimaryButton>
             <PrimaryButton icon="X" variant="ghost" onClick={() => setPicking(true)}>Nein, ändern</PrimaryButton>
@@ -440,15 +522,16 @@ function DetectedCard({ detected, onConfirm, onChange }) {
   );
 }
 
-function AnalyseStartCard({ onStart, running }) {
+function AnalyseStartCard({ onStart, running, competitor, kundentyp, wohn, avb }) {
   return (
     <div className="card">
       <div className="card-h">Bereit zur Analyse</div>
       <div className="analyse-row">
         <div className="analyse-meta">
-          <div className="meta-pill"><Icon name="FileCheck" size={13} /> Police gelesen</div>
-          <div className="meta-pill"><Icon name="User" size={13} /> Kundenkontext erfasst</div>
-          <div className="meta-pill"><Icon name="ShieldCheck" size={13} /> 3 Bausteine bereit</div>
+          <div className="meta-pill"><Icon name="FileCheck" size={13} /> Fremdpolice: {competitor || "—"}</div>
+          <div className="meta-pill"><Icon name="User" size={13} /> {kundentyp || "—"} · {wohn || "—"}</div>
+          <div className="meta-pill"><Icon name="ShieldCheck" size={13} /> Hausrat · Haftpflicht · Cyber</div>
+          {avb && <div className="meta-pill"><Icon name="FileText" size={13} /> AVB {avb.version}</div>}
         </div>
       </div>
       {!running ? (
@@ -471,7 +554,7 @@ function AnalyseStartCard({ onStart, running }) {
   );
 }
 
-function AdvantagesCard({ kunde, onTable, onDeep }) {
+function AdvantagesCard({ kunde, onTable, onDeep, onPrep }) {
   const list = ADVANTAGES[kunde] || ADVANTAGES.Familie;
   return (
     <div className="card card-result">
@@ -488,22 +571,33 @@ function AdvantagesCard({ kunde, onTable, onDeep }) {
         ))}
       </ul>
       <div className="card-actions row">
-        <PrimaryButton icon="Table" onClick={onTable}>Detaillierte Tabelle anzeigen</PrimaryButton>
-        <PrimaryButton icon="ZoomIn" variant="ghost" onClick={onDeep}>Bestimmten Bereich vertiefen</PrimaryButton>
+        <PrimaryButton icon="Table" onClick={onTable}>Detaillierte Tabelle</PrimaryButton>
+        <PrimaryButton icon="ZoomIn" variant="ghost" onClick={onDeep}>Bereich vertiefen</PrimaryButton>
+        <PrimaryButton icon="Mic" variant="ghost" onClick={onPrep}>Gesprächsvorbereitung</PrimaryButton>
       </div>
     </div>
   );
 }
 
-function CompareTable({ comp, onDownload }) {
+function CompareTable({ comp, avb, onDownload }) {
   const [more, setMore] = useState(false);
   const rows = more ? [...TABLE_ROWS_BASE, ...TABLE_ROWS_MORE] : TABLE_ROWS_BASE;
+  const avbS = avb ? AVB_STATUS[avb.status] : null;
   return (
     <div className="card card-table">
       <div className="result-h">
         <div className="result-h-eyebrow">Vergleichstabelle · AXA vs. {comp}</div>
         <div className="result-h-title">Baustein-für-Baustein-Gegenüberstellung</div>
       </div>
+      {avb && (
+        <div className="tbl-source">
+          <Icon name="FileText" size={11} />
+          {comp} {avb.label}
+          <span className="tbl-source-sep">·</span>
+          AXA {AXA_AVB.label}
+          {avbS && <span className={`avb-status ${avbS.cls}`}>● {avbS.label}</span>}
+        </div>
+      )}
       <div className="tbl">
         <div className="tbl-head">
           <div>Baustein</div>
@@ -674,16 +768,15 @@ function App() {
   const [step, setStep] = useState("welcome");
   const [situation, setSituation] = useState(null);
   const [competitor, setCompetitor] = useState(null);
+  const [avbVersion, setAvbVersion] = useState(null);
   const [analyseDone, setAnalyseDone] = useState(false);
   const [showTable, setShowTable] = useState(false);
   const [showProse, setShowProse] = useState(false);
   const [showPrep, setShowPrep] = useState(false);
-  const [showDeepSelector, setShowDeepSelector] = useState(false);
-  const [deepAreas, setDeepAreas] = useState([]);
+  const [deepHistory, setDeepHistory] = useState([]);  // [{type:'selector'}|{type:'card',key}]
   const [analyseRunning, setAnalyseRunning] = useState(false);
   const [qaMessages, setQaMessages] = useState([]);
   const [qaInput, setQaInput] = useState("");
-  const [sideOpen, setSideOpen] = useState(false);
   const scrollRef = useRef(null);
 
   const now = () => {
@@ -700,10 +793,12 @@ function App() {
   const startNew = () => setStep("upload-intro");
   const onUploaded = ({ detected }) => {
     setCompetitor(detected);
+    setAvbVersion(AVB_DB[detected] || null);
     setStep("detected");
   };
   const confirmCompetitor = (c) => {
     setCompetitor(c);
+    setAvbVersion(AVB_DB[c] || null);
     setStep("upload-axa");
   };
   const onAxaUploaded = () => {
@@ -731,7 +826,11 @@ function App() {
   };
 
   const handleDeepSelect = (key) => {
-    setDeepAreas((prev) => prev.includes(key) ? prev : [...prev, key]);
+    setDeepHistory((prev) => {
+      const alreadySelected = prev.filter(e => e.type === 'card').map(e => e.key);
+      if (alreadySelected.includes(key)) return prev;
+      return [...prev, { type: 'card', key }];
+    });
   };
 
   const handleDownload = () => {
@@ -747,9 +846,6 @@ function App() {
     <div className="app">
       <header className="topbar">
         <div className="topbar-left">
-          <button className="menu-btn" onClick={() => setSideOpen(true)} aria-label="Menu">
-            <Icon name="Menu" size={18} />
-          </button>
           <div className="logo">
             <span className="logo-mark" />
             <span className="logo-text">comparedesk</span>
@@ -759,63 +855,18 @@ function App() {
           <span className="badge-internal">INTERN · AD</span>
         </div>
         <div className="topbar-right">
-          <button className="icon-btn"><Icon name="HelpCircle" size={15} /> Hilfe</button>
           <div className="user-tag">JM · Jana Müller</div>
         </div>
       </header>
 
       <div className="layout">
-        {sideOpen && <div className="side-scrim" onClick={() => setSideOpen(false)} />}
-        <aside className={`sidebar ${sideOpen ? "sidebar-open" : ""}`}>
-          <button className="side-close" onClick={() => setSideOpen(false)} aria-label="Schliessen">
-            <Icon name="X" size={16} />
-          </button>
-          <div className="side-h">Aktueller Vergleich</div>
-          <div className="side-card">
-            <div className="side-row"><span className="side-k">Status</span><span className="side-v"><span className={`status-dot ${analyseDone ? "ok" : "wip"}`} /> {analyseDone ? "Bereit" : "In Arbeit"}</span></div>
-            <div className="side-row"><span className="side-k">Kundentyp</span><span className="side-v">{situation?.kundentyp || "—"}</span></div>
-            <div className="side-row"><span className="side-k">Wohnen</span><span className="side-v">{situation?.wohn || "—"}</span></div>
-            <div className="side-row"><span className="side-k">Mitbewerber</span><span className="side-v">{competitor || "—"}</span></div>
-            <div className="side-row"><span className="side-k">Bausteine</span><span className="side-v">Hausrat · Haftpflicht · Cyber</span></div>
-          </div>
-
-          <div className="side-h">Schritte</div>
-          <ol className="side-steps">
-            {[
-              ["welcome", "Start"],
-              ["upload-intro", "Fremdpolice"],
-              ["detected", "Mitbewerber"],
-              ["upload-axa", "AXA-Police"],
-              ["situation-intro", "Situation"],
-              ["analyse", "Analyse"],
-              ["advantages", "Vorteile"],
-              ["table", "Tabelle"],
-            ].map(([k, label], i) => {
-              const reached = stepIndex(step) >= stepIndex(k);
-              const current = step === k || (k === "table" && showTable);
-              return (
-                <li key={k} className={`side-step ${reached ? "reached" : ""} ${current ? "current" : ""}`}>
-                  <span className="side-step-num">{String(i + 1).padStart(2, "0")}</span>
-                  <span>{label}</span>
-                </li>
-              );
-            })}
-          </ol>
-
-          <div className="side-foot">
-            <button className="side-prep-btn" disabled={!analyseDone} onClick={() => { setShowPrep(true); setSideOpen(false); }}>
-              <Icon name="Mic" size={14} /> Gesprächsvorbereitung
-            </button>
-          </div>
-        </aside>
-
         <main className="chat" ref={scrollRef}>
           <div className="chat-inner">
 
             {/* WELCOME */}
             {step === "welcome" && (
               <MessageBubble from="bot" time={now()}>
-                <WelcomeCard onStart={startNew} onAsk={() => setStep("qa")} />
+                <WelcomeCard onStart={startNew} />
               </MessageBubble>
             )}
 
@@ -837,8 +888,10 @@ function App() {
                 {step === "detected" ? (
                   <DetectedCard
                     detected={competitor}
+                    avb={avbVersion}
                     onConfirm={confirmCompetitor}
                     onChange={confirmCompetitor}
+                    onAvbManual={(data) => setAvbVersion(data)}
                   />
                 ) : (
                   <div className="card">
@@ -849,6 +902,7 @@ function App() {
                         <div className="detected-sub">Bestätigt</div>
                       </div>
                     </div>
+                    {avbVersion && <AvbBadge avb={avbVersion} />}
                   </div>
                 )}
               </MessageBubble>
@@ -905,7 +959,14 @@ function App() {
                   <b>{kundenLabel}</b>.
                 </MessageBubble>
                 <MessageBubble from="bot" animate={false}>
-                  <AnalyseStartCard onStart={runAnalyse} running={analyseRunning} />
+                  <AnalyseStartCard
+                    onStart={runAnalyse}
+                    running={analyseRunning}
+                    competitor={competitor}
+                    kundentyp={situation?.kundentyp}
+                    wohn={situation?.wohn}
+                    avb={avbVersion}
+                  />
                 </MessageBubble>
               </>
             )}
@@ -920,7 +981,8 @@ function App() {
                   <AdvantagesCard
                     kunde={kundenLabel}
                     onTable={() => { setShowTable(true); setShowProse(true); }}
-                    onDeep={() => setShowDeepSelector(true)}
+                    onDeep={() => setDeepHistory(prev => [...prev, { type: 'selector' }])}
+                    onPrep={() => setShowPrep(true)}
                   />
                 </MessageBubble>
               </>
@@ -929,7 +991,7 @@ function App() {
             {/* TABLE */}
             {showTable && (
               <MessageBubble from="bot" animate={true}>
-                <CompareTable comp={competitor || "Mitbewerber"} onDownload={handleDownload} />
+                <CompareTable comp={competitor || "Mitbewerber"} avb={avbVersion} onDownload={handleDownload} />
               </MessageBubble>
             )}
 
@@ -940,31 +1002,39 @@ function App() {
               </MessageBubble>
             )}
 
-            {/* DEEP DIVE SELECTOR */}
-            {showDeepSelector && (
-              <MessageBubble from="bot" animate={true}>
-                <DeepDiveSelector openedKeys={deepAreas} onSelect={handleDeepSelect} />
-              </MessageBubble>
-            )}
-
-            {/* DEEP DIVE CARDS */}
-            {deepAreas.map((key) => {
-              const area = DEEP_DIVE_AREAS.find((a) => a.key === key);
-              return area ? (
-                <MessageBubble key={key} from="bot" animate={true}>
-                  <DeepDiveCard area={area} />
-                </MessageBubble>
-              ) : null;
-            })}
-
-            {/* "Weiteren Bereich" button after last deep dive */}
-            {deepAreas.length > 0 && deepAreas.length < DEEP_DIVE_AREAS.length && (
-              <div className="more-area-row">
-                <button className="btn btn-ghost btn-sm" onClick={() => setShowDeepSelector(true)}>
-                  <Icon name="Plus" size={13} /> Weiteren Bereich vertiefen
-                </button>
-              </div>
-            )}
+            {/* DEEP DIVE — selectors and cards interleaved */}
+            {(() => {
+              const selectedKeys = deepHistory.filter(e => e.type === 'card').map(e => e.key);
+              const lastEntry = deepHistory[deepHistory.length - 1];
+              const lastIsCard = lastEntry?.type === 'card';
+              return (
+                <>
+                  {deepHistory.map((entry, i) => {
+                    if (entry.type === 'selector') {
+                      return (
+                        <MessageBubble key={`dh-${i}`} from="bot" animate={true}>
+                          <DeepDiveSelector openedKeys={selectedKeys} onSelect={handleDeepSelect} />
+                        </MessageBubble>
+                      );
+                    }
+                    const area = DEEP_DIVE_AREAS.find(a => a.key === entry.key);
+                    return area ? (
+                      <MessageBubble key={`dh-${i}`} from="bot" animate={true}>
+                        <DeepDiveCard area={area} />
+                      </MessageBubble>
+                    ) : null;
+                  })}
+                  {lastIsCard && selectedKeys.length < DEEP_DIVE_AREAS.length && (
+                    <div className="more-area-row">
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={() => setDeepHistory(prev => [...prev, { type: 'selector' }])}>
+                        <Icon name="Plus" size={13} /> Weiteren Bereich vertiefen
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {/* QA messages */}
             {qaMessages.map((entry, i) => (
