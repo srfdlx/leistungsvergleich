@@ -2,7 +2,7 @@
 const { useState, useEffect, useRef, useMemo } = React;
 
 // ---------- Icons (from lucide global) ----------
-const I = lucide ? lucide.icons : {};
+const I = lucide ? (lucide.icons || lucide) : {};
 const Icon = ({ name, size = 16, className = "", strokeWidth = 1.75 }) => {
   const node = I[name];
   if (!node) return null;
